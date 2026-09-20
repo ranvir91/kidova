@@ -21,6 +21,7 @@ class AppColors {
   static const List<Color> sunGradient = [secondary, accentYellow];
   static const List<Color> oceanGradient = [accentTeal, primary];
   static const List<Color> leafGradient = [accentGreen, accentTeal];
+  static const List<Color> berryGradient = [accentPink, primaryDark];
 
   static const List<Color> cardPalette = [
     primary,

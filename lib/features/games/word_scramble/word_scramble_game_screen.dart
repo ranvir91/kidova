@@ -13,6 +13,26 @@ import '../../../core/widgets/loading_view.dart';
 import '../../../data/services/datamuse_service.dart';
 import '../../../data/services/progress_provider.dart';
 
+enum ScrambleDifficulty {
+  easy('Easy', '🌱', 3, 4, '3-4 letter words'),
+  medium('Medium', '⭐', 5, 6, '5-6 letter words'),
+  hard('Hard', '🔥', 7, 99, '7+ letter words');
+
+  const ScrambleDifficulty(
+    this.label,
+    this.emoji,
+    this.minLength,
+    this.maxLength,
+    this.description,
+  );
+
+  final String label;
+  final String emoji;
+  final int minLength;
+  final int maxLength;
+  final String description;
+}
+
 class _ScrambleRound {
   final String word;
   final String? hint;
@@ -42,6 +62,7 @@ class _WordScrambleGameScreenState extends State<WordScrambleGameScreen> {
   );
   final Random _random = Random();
 
+  ScrambleDifficulty? _difficulty;
   late Future<List<_ScrambleRound>> _future;
   int _currentIndex = 0;
   int _score = 0;
@@ -50,10 +71,21 @@ class _WordScrambleGameScreenState extends State<WordScrambleGameScreen> {
   List<int> _selectedLetterIndexes = [];
   bool? _wasCorrect;
 
-  @override
-  void initState() {
-    super.initState();
-    _future = _buildRounds();
+  void _selectDifficulty(ScrambleDifficulty difficulty) {
+    setState(() {
+      _difficulty = difficulty;
+      _currentIndex = 0;
+      _score = 0;
+      _finished = false;
+      _showHint = false;
+      _selectedLetterIndexes = [];
+      _wasCorrect = null;
+      _future = _buildRounds();
+    });
+  }
+
+  void _changeLevel() {
+    setState(() => _difficulty = null);
   }
 
   @override
@@ -72,9 +104,9 @@ class _WordScrambleGameScreenState extends State<WordScrambleGameScreen> {
   }
 
   Future<List<_ScrambleRound>> _buildRounds() async {
-    final words = List<String>.from(
-      WordBank.words.where((w) => w.length >= 4 && w.length <= 9),
-    )..shuffle();
+    final difficulty = _difficulty!;
+    final words = WordBank.wordsInRange(difficulty.minLength, difficulty.maxLength)
+      ..shuffle();
     final candidates = words.take(_roundCount + 3).toList();
 
     final rounds = <_ScrambleRound>[];
@@ -160,74 +192,174 @@ class _WordScrambleGameScreenState extends State<WordScrambleGameScreen> {
   }
 
   void _restart() {
-    setState(() {
-      _currentIndex = 0;
-      _score = 0;
-      _finished = false;
-      _showHint = false;
-      _selectedLetterIndexes = [];
-      _wasCorrect = null;
-      _future = _buildRounds();
-    });
+    _selectDifficulty(_difficulty!);
   }
 
   @override
   Widget build(BuildContext context) {
+    final difficulty = _difficulty;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Word Scramble')),
-      body: Stack(
-        alignment: Alignment.topCenter,
+      appBar: AppBar(
+        title: const Text('Word Scramble'),
+        actions: [
+          if (difficulty != null)
+            TextButton.icon(
+              onPressed: _changeLevel,
+              icon: const Icon(Icons.tune, color: AppColors.primary),
+              label: Text(
+                difficulty.label,
+                style: const TextStyle(color: AppColors.primary),
+              ),
+            ),
+        ],
+      ),
+      body: difficulty == null
+          ? _DifficultyPicker(onSelect: _selectDifficulty)
+          : Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                FutureBuilder<List<_ScrambleRound>>(
+                  future: _future,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const LoadingView(
+                        message: 'Shuffling letters...',
+                      );
+                    }
+                    if (snapshot.hasError) {
+                      return ErrorView(
+                        message: snapshot.error.toString(),
+                        onRetry: _restart,
+                      );
+                    }
+                    final rounds = snapshot.data!;
+                    _totalRounds = rounds.length;
+
+                    if (_finished) {
+                      return _ScrambleResultView(
+                        score: _score,
+                        total: rounds.length,
+                        onPlayAgain: _restart,
+                      );
+                    }
+
+                    final round = rounds[_currentIndex];
+                    return _ScrambleRoundView(
+                      round: round,
+                      roundNumber: _currentIndex + 1,
+                      totalRounds: rounds.length,
+                      score: _score,
+                      selectedLetterIndexes: _selectedLetterIndexes,
+                      wasCorrect: _wasCorrect,
+                      showHint: _showHint,
+                      onToggleHint: () =>
+                          setState(() => _showHint = !_showHint),
+                      onTapLetter: (i) => _tapLetter(round, i),
+                      onRemoveSelected: _removeSelected,
+                    );
+                  },
+                ),
+                ConfettiWidget(
+                  confettiController: _confetti,
+                  blastDirection: pi / 2,
+                  numberOfParticles: 20,
+                  maxBlastForce: 12,
+                  minBlastForce: 6,
+                  gravity: 0.3,
+                  colors: AppColors.cardPalette,
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _DifficultyPicker extends StatelessWidget {
+  final ValueChanged<ScrambleDifficulty> onSelect;
+
+  const _DifficultyPicker({required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FutureBuilder<List<_ScrambleRound>>(
-            future: _future,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const LoadingView(message: 'Shuffling letters...');
-              }
-              if (snapshot.hasError) {
-                return ErrorView(
-                  message: snapshot.error.toString(),
-                  onRetry: _restart,
-                );
-              }
-              final rounds = snapshot.data!;
-              _totalRounds = rounds.length;
-
-              if (_finished) {
-                return _ScrambleResultView(
-                  score: _score,
-                  total: rounds.length,
-                  onPlayAgain: _restart,
-                );
-              }
-
-              final round = rounds[_currentIndex];
-              return _ScrambleRoundView(
-                round: round,
-                roundNumber: _currentIndex + 1,
-                totalRounds: rounds.length,
-                score: _score,
-                selectedLetterIndexes: _selectedLetterIndexes,
-                wasCorrect: _wasCorrect,
-                showHint: _showHint,
-                onToggleHint: () => setState(() => _showHint = !_showHint),
-                onTapLetter: (i) => _tapLetter(round, i),
-                onRemoveSelected: _removeSelected,
-              );
-            },
+          const Text(
+            'Choose a Level',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textDark,
+            ),
           ),
-          ConfettiWidget(
-            confettiController: _confetti,
-            blastDirection: pi / 2,
-            numberOfParticles: 20,
-            maxBlastForce: 12,
-            minBlastForce: 6,
-            gravity: 0.3,
-            colors: AppColors.cardPalette,
+          const SizedBox(height: 4),
+          const Text(
+            'How tricky should the words be?',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textMuted),
           ),
+          const SizedBox(height: 24),
+          for (final difficulty in ScrambleDifficulty.values)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: BouncyButton(
+                onTap: () => onSelect(difficulty),
+                child: KidCard(
+                  gradient: _gradientFor(difficulty),
+                  child: Row(
+                    children: [
+                      Text(
+                        difficulty.emoji,
+                        style: const TextStyle(fontSize: 32),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              difficulty.label,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              difficulty.description,
+                              style: const TextStyle(color: Colors.white70),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  List<Color> _gradientFor(ScrambleDifficulty difficulty) {
+    switch (difficulty) {
+      case ScrambleDifficulty.easy:
+        return AppColors.leafGradient;
+      case ScrambleDifficulty.medium:
+        return AppColors.sunGradient;
+      case ScrambleDifficulty.hard:
+        return AppColors.berryGradient;
+    }
   }
 }
 
