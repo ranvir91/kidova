@@ -7,6 +7,7 @@ class KidCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final Color? color;
   final List<Color>? gradient;
+  final double borderRadius;
 
   const KidCard({
     super.key,
@@ -14,6 +15,7 @@ class KidCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(20),
     this.color,
     this.gradient,
+    this.borderRadius = 28,
   });
 
   @override
@@ -29,7 +31,7 @@ class KidCard extends StatelessWidget {
                 end: Alignment.bottomRight,
               )
             : null,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: [
           BoxShadow(
             color: (color ?? gradient?.first ?? Colors.black)

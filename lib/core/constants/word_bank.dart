@@ -1,5 +1,5 @@
-/// A curated bank of kid-friendly words used for the Word of the Day
-/// feature and as the source pool for vocabulary games.
+/// A curated bank of kid-friendly words used as the source pool for
+/// vocabulary games.
 ///
 /// Kept deliberately simple/short so lookups against the dictionary API
 /// return kid-appropriate results.
@@ -7,6 +7,39 @@ class WordBank {
   WordBank._();
 
   static const List<String> words = [
+    // Short (3-4 letter) words, mainly for easy-mode Word Scramble.
+    'cat',
+    'dog',
+    'sun',
+    'fox',
+    'owl',
+    'bee',
+    'ant',
+    'pig',
+    'hen',
+    'cow',
+    'toy',
+    'fun',
+    'joy',
+    'moon',
+    'bird',
+    'fish',
+    'frog',
+    'lion',
+    'bear',
+    'duck',
+    'star',
+    'leaf',
+    'rain',
+    'snow',
+    'kite',
+    'cake',
+    'roar',
+    'tiny',
+    'zany',
+    'cozy',
+    'echo',
+    // Medium and longer words.
     'brave',
     'giggle',
     'sparkle',
@@ -45,28 +78,19 @@ class WordBank {
     'orbit',
     'playful',
     'quiet',
-    'roar',
     'silly',
-    'tiny',
     'unique',
     'vivid',
     'wander',
-    'zany',
     'blossom',
-    'cozy',
     'dazzle',
-    'echo',
     'feather',
   ];
 
-  /// Deterministically picks a word for a given [date] so every user sees
-  /// the same "Word of the Day" and it stays stable if opened again later
-  /// the same day.
-  static String wordForDate(DateTime date) {
-    final dayOfYear = int.parse(
-      '${date.year}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}',
-    );
-    final index = dayOfYear % words.length;
-    return words[index];
+  /// Words with a length in the inclusive range [minLength, maxLength].
+  static List<String> wordsInRange(int minLength, int maxLength) {
+    return words
+        .where((w) => w.length >= minLength && w.length <= maxLength)
+        .toList();
   }
 }
