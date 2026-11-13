@@ -1,4 +1,4 @@
-package com.kidova.kidova
+package com.myname.kidova
 
 import io.flutter.embedding.android.FlutterActivity
 
